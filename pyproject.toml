@@ -5,12 +5,19 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "huggingface-hub>=1.28.0",
     "ipykernel>=7.3.0",
     "matplotlib>=3.11.1",
+    "mlflow>=1.27.0",
     "numpy>=2.5.2",
+    "optuna>=4.9.0",
     "pandas>=3.0.5",
     "polar>=0.0.127",
     "polars>=1.43.2",
+    "pyarrow>=25.0.1",
     "scikit-learn>=1.9.0",
+    "scipy>=1.18.1",
     "seaborn>=0.13.2",
+    "statsmodels>=0.14.6",
+    "torch>=2.13.0",
 ]
