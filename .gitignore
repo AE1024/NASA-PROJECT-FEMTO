@@ -10,3 +10,4 @@ wheels/
 .venv
 data/
 raw_data/
+processed_data
