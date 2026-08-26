@@ -24,4 +24,5 @@ def extract_features(group: pd.DataFrame) -> pd.Series:
     return pd.Series({
         **compute_axis_features(group['ax'], 'ax'),
         **compute_axis_features(group['ay'], 'ay'),
+        **compute_axis_features(group['mag'], 'mag'),
     })  
