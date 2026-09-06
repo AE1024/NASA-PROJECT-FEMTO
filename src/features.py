@@ -55,7 +55,6 @@ def extract_features(group: pd.DataFrame) -> pd.Series:
         **compute_axis_features(group["mag"], "mag"),
     })
 
-
 # ── 04: Health Index via PCA + Mahalanobis ────────────────────────────────────
 
 def _mahalanobis_distance(data: np.ndarray, baseline: np.ndarray) -> np.ndarray:
@@ -188,6 +187,82 @@ def compute_rolling_slopes(
             b[f"{feat}_slope"] = slopes
         bearing_frames.append(b)
     return pd.concat(bearing_frames, ignore_index=True)
+
+
+# ── Raw signal → extracted features ──────────────────────────────────────────
+
+def detect_bearing_lifetimes(raw_df: pd.DataFrame) -> dict:
+    """
+    Auto-detects bearing lifetimes from row-count transitions in raw signal data.
+    Each drop in rows-per-file = one bearing dying.
+    Returns {bearing_1: last_alive_step, bearing_2: ..., ...} in death order.
+    """
+    counts = raw_df.groupby("source_file").size()
+    counts.index = counts.index.str.extract(r"(\d+)")[0].astype(int)
+    counts = counts.sort_index()
+
+    # Find steps where count drops (a bearing died just before this step)
+    changes = counts[counts != counts.shift()].iloc[1:]  # skip first (no previous)
+    death_steps = (changes.index - 1).tolist()           # last step bearing was alive
+    death_steps.append(int(counts.index.max()))           # last surviving bearing
+
+    return {f"bearing_{i+1}": step for i, step in enumerate(sorted(death_steps))}
+
+
+def assign_bearing_ids_raw(raw_df: pd.DataFrame, bearing_lifetimes: dict) -> pd.DataFrame:
+    """
+    Assigns bearing_id and step columns to raw signal data.
+    Uses (step, block_idx) merge — order-independent.
+    """
+    df = raw_df.copy()
+    df["step"] = df["source_file"].str.extract(r"(\d+)").astype(int)
+    df["row_in_file"] = df.groupby("source_file").cumcount()
+    df["block_idx"] = df["row_in_file"] // 2560
+
+    lookup_rows = []
+    for step in range(1, max(bearing_lifetimes.values()) + 1):
+        alive = sorted([b for b, life in bearing_lifetimes.items() if step <= life])
+        for idx, bid in enumerate(alive):
+            lookup_rows.append({"step": step, "block_idx": idx, "bearing_id": bid})
+
+    lookup = pd.DataFrame(lookup_rows)
+    df = df.merge(lookup, on=["step", "block_idx"], how="left")
+    return df
+
+
+def extract_step_features(raw_df_with_ids: pd.DataFrame) -> pd.DataFrame:
+    """
+    Extracts 30 time-domain features per (bearing_id, step) from raw signal blocks.
+    Input must have columns: bearing_id, step, ax, ay, mag.
+    Returns one row per (bearing_id, step).
+    """
+    records = []
+    for (bid, step), group in raw_df_with_ids.groupby(["bearing_id", "step"]):
+        feats = extract_features(group)
+        feats["bearing_id"] = bid
+        feats["step"] = step
+        records.append(feats)
+    return pd.DataFrame(records).reset_index(drop=True)
+
+
+def raw_to_features(
+    raw_df: pd.DataFrame,
+    bearing_lifetimes: dict | None = None,
+) -> pd.DataFrame:
+    """
+    Full conversion: raw signal DataFrame → 30-feature DataFrame with bearing_id and step.
+
+    Parameters
+    ----------
+    raw_df           : DataFrame with columns [ax, ay, mag, source_file]
+    bearing_lifetimes: {bearing_id: last_alive_step}. Auto-detected if None.
+    """
+    if bearing_lifetimes is None:
+        bearing_lifetimes = detect_bearing_lifetimes(raw_df)
+
+    df_with_ids = assign_bearing_ids_raw(raw_df, bearing_lifetimes)
+    features_df = extract_step_features(df_with_ids)
+    return features_df
 
 
 # ── Pipeline orchestrator ──────────────────────────────────────────────────────
