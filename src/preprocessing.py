@@ -61,8 +61,10 @@ def prepare_dataset(
         index=df_model.index,
     )
 
-    # 8. Select only the 21 model features
-    X = X_scaled[selected_features]
+    # 8. Select only the 21 model features + attach bearing_id/step as metadata
+    X = X_scaled[selected_features].copy()
+    X.insert(0, "bearing_id", df_model["bearing_id"].values)
+    X.insert(1, "step",       df_model["step"].values)
 
     y = df_model["RUL_pct"] if include_target and "RUL_pct" in df_model.columns else None
 
