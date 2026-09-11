@@ -1,59 +1,85 @@
-#arxiv.org/abs/2201.01769 article deep learning solution implementation
+# arxiv.org/abs/2201.01769 — feedforward NN for RUL prediction
 import torch
 import torch.nn as nn
+
 _ACTIVATIONS = {
-    "relu":       nn.ReLU,
-    "tanh":       nn.Tanh,
+    "relu":  nn.ReLU,
+    "tanh":  nn.Tanh,
     "leaky_relu": nn.LeakyReLU,
-    "sigmoid" : nn.Sigmoid,
-    "SiLU": nn.SiLU
+    "sigmoid": nn.Sigmoid,
+    "silu":  nn.SiLU,
 }
 
-class NN_Block(nn.Module):
-    def __init__(self, input_dim, output_dim, activation, dropout_rate):
-        super().__init__()
-        self.linear= nn.Linear(input_dim, output_dim)
-        self.activation = activation if activation else None
-        self.dropout = nn.Dropout(dropout_rate)
 
-    def forward(self, x):
-        x = self.linear(x)
-        if self.activation is not None:
-            x = self.activation(x)
-        x = self.dropout(x)
-        return x
+class NN_Block(nn.Module):
+    """Single hidden block: Linear -> Activation -> Dropout."""
+
+    def __init__(self, input_dim: int, output_dim: int, activation: nn.Module, dropout_rate: float):
+        super().__init__()
+        self.linear     = nn.Linear(input_dim, output_dim)
+        self.activation = activation
+        self.dropout    = nn.Dropout(dropout_rate)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.dropout(self.activation(self.linear(x)))
+
 
 class RULnet(nn.Module):
-    def __init__(self, input_dim: int = 21, n_layers: int = 3, n_units: int = 32, dropout_rate: float = 0.1, activation: str = "relu"):
-        super().__init__()
-        if not (0.0 <= dropout_rate <= 1.0):
-            raise ValueError(f"dropout_rate should be 0-1 : {dropout_rate}")
-        if isinstance(activation, str):
-            activations = [activation] * (n_layers - 1)
-        else:
-            if len(activation) != n_layers - 1:
-                raise ValueError(f"activation list should be n_layers-1={n_layers-1} .")
-            activations = activation
+    """
+    Feedforward network for RUL prediction (von Hahn & Mechefske, 2022).
 
+    Architecture:
+        input (input_dim)
+        -> n_layers x [Linear -> Activation -> Dropout]
+        -> Linear(n_units, 1) -> Sigmoid x 100
+        -> output: LifePercentage in [0, 100]
+
+    Parameters
+    ----------
+    input_dim    : number of input features
+    n_layers     : number of hidden blocks (>= 1)
+    n_units      : hidden units per block
+    dropout_rate : dropout probability, in [0, 1)
+    activation   : activation name (applied to all blocks) or list of names
+                   (one per block, length must equal n_layers).
+                   Choices: relu, tanh, leaky_relu, sigmoid, silu
+    """
+
+    def __init__(
+        self,
+        input_dim: int= 21,
+        n_layers: int  = 3,
+        n_units: int  = 64,
+        dropout_rate: float = 0.1,
+        activation: str | list[str] = "relu",
+    ):
+        super().__init__()
+        if not (0.0 <= dropout_rate < 1.0):
+            raise ValueError(f"dropout_rate must be in [0, 1): {dropout_rate}")
+        if n_layers < 1:
+            raise ValueError(f"n_layers must be >= 1: {n_layers}")
+
+        if isinstance(activation, str):
+            activations: list[str] = [activation] * n_layers
+        else:
+            if len(activation) != n_layers:
+                raise ValueError(
+                    f"activation list length must equal n_layers={n_layers}, got {len(activation)}"
+                )
+            activations = list(activation)
+
+        for a in activations:
+            if a not in _ACTIVATIONS:
+                raise ValueError(f"Unknown activation '{a}'. Choices: {list(_ACTIVATIONS)}")
 
         self.blocks = nn.ModuleList()
-        # Input block
-        self.blocks.append(NN_Block(input_dim, n_units, activation=None, dropout_rate=dropout_rate))
+        self.blocks.append(NN_Block(input_dim, n_units, _ACTIVATIONS[activations[0]](), dropout_rate))
+        for act in activations[1:]:
+            self.blocks.append(NN_Block(n_units, n_units, _ACTIVATIONS[act](), dropout_rate))
 
-        # Hidden blocks
-        for act in activations:
-            self.blocks.append(NN_Block(n_units, n_units, activation=_ACTIVATIONS[act](), dropout_rate=dropout_rate))
-        # Output layer
         self.output_layer = nn.Linear(n_units, 1)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.blocks:
             x = block(x)
-        x = torch.sigmoid(self.output_layer(x))
-        return x * 100
-
-#model = RULnet(input_dim=21, n_layers=5, n_units=32, dropout_rate=0.2, activation=["relu","tanh","relu","relu"])
-#print(model)
-#x = torch.randn(8, 21)   # batch=8, feature=21
-#print(model(x).shape)    # → torch.Size([8, 1])
-
+        return torch.sigmoid(self.output_layer(x)).squeeze(-1) * 100

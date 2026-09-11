@@ -12,3 +12,11 @@ data/
 raw_data/
 processed_data/
 data/
+
+# MLflow local tracking store — binary DB + artifact store, not source
+mlflow.db
+mlartifacts/
+mlruns/
+
+# Optuna local study store
+model/optuna_study.db
