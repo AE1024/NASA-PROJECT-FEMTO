@@ -1,0 +1,27 @@
+{
+  "source": "https://github.com/wkzs111/phm-ieee-2012-data-challenge-dataset (official IEEE PHM 2012 / PRONOSTIA repo, cross-checked via GitHub tree API file counts)",
+  "train_bearing_id_to_real_name": {
+    "bearing_1": "Bearing3_1",
+    "bearing_2": "Bearing2_2",
+    "bearing_3": "Bearing1_2",
+    "bearing_4": "Bearing2_1",
+    "bearing_5": "Bearing3_2",
+    "bearing_6": "Bearing1_1"
+  },
+  "val_bearing_id_to_real_name": {
+    "bearing_1": "Bearing2_7",
+    "bearing_2": "Bearing3_3",
+    "bearing_3": "Bearing2_6",
+    "bearing_4": "Bearing2_4",
+    "bearing_5": "Bearing2_3",
+    "bearing_6": "Bearing1_7",
+    "bearing_7": "Bearing2_5",
+    "bearing_8": "Bearing1_3",
+    "bearing_9": "Bearing1_6",
+    "bearing_10": "Bearing1_5"
+  },
+  "test_bearing_id_to_real_name_bearing_5_only": {
+    "bearing_5": "Bearing1_4  (truncated at 1139/1428 true steps; RUL_pct recomputed with max_steps=1428)"
+  },
+  "note": "Old val=Full_Test_Set (complete), old test=Test_set (truncated, PHM2012 challenge hidden-answer data). Both drew from the same 11 physical bearings, causing val/test leakage. Rebuilt as disjoint experiments/paper_replica (9 bearings, mirrors arXiv:2201.01769 Table 6) and experiments/full_data (17 bearings, disjoint val/test, maximizes sample size)."
+}

@@ -1,0 +1,26 @@
+{
+  "best_trial": 31,
+  "best_epoch": 120,
+  "params": {
+    "n_layers": 4,
+    "n_units": 32,
+    "dropout_rate": 0.25,
+    "lr": 0.001,
+    "batch_size": 64,
+    "lambda_w": 2.962566652434816,
+    "activation": "relu"
+  },
+  "val_metrics": {
+    "rmse": 21.288886180462505,
+    "r2": 0.4561399221420288
+  },
+  "test_metrics": {
+    "rmse": 18.38181640416437,
+    "r2": 0.5718640685081482
+  },
+  "n_trials": 50,
+  "n_pruned": 30,
+  "n_epochs": 300,
+  "seed": 42,
+  "input_dim": 21
+}
